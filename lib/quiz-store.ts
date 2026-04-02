@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { questions, Question } from './questions'
-import { fetchCloudData, saveCloudData, CloudData } from './cloud-sync'
+import { fetchCloudData, saveCloudData } from './cloud-sync'
 
 type QuizMode = 'home' | 'quiz' | 'done'
 type LoadState = 'loading' | 'ready' | 'error'
@@ -28,8 +28,8 @@ export function useQuizStore() {
   const [totalCorrect, setTotalCorrect] = useState(0)
   const [sessionCorrect, setSessionCorrect] = useState(0)
   const [sessionAnswered, setSessionAnswered] = useState(0)
+  const [sessionGoal, setSessionGoal] = useState(20)
 
-  // Load from cloud on mount
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -45,31 +45,21 @@ export function useQuizStore() {
     return () => { cancelled = true }
   }, [])
 
-  const syncSave = useCallback(async (nextWrong: Set<number>, nextAnswered: number, nextCorrect: number) => {
-    setWrongIds(nextWrong)
-    setTotalAnswered(nextAnswered)
-    setTotalCorrect(nextCorrect)
-    await saveCloudData({
-      wrongIds: [...nextWrong],
-      totalAnswered: nextAnswered,
-      totalCorrect: nextCorrect,
-      lastUpdated: Date.now(),
-    })
-  }, [])
-
   const startQuiz = useCallback((wrongOnly = false) => {
     const src = wrongOnly && wrongIds.size > 0
       ? questions.filter(q => wrongIds.has(q.id))
       : questions
     const shuffled = shuffle(src)
-    setQueue(shuffled)
-    setCurrent(shuffled[0])
+    // Limit to sessionGoal questions
+    const limited = shuffled.slice(0, sessionGoal)
+    setQueue(limited)
+    setCurrent(limited[0] ?? null)
     setSelected(null)
     setConfirmed(false)
     setSessionCorrect(0)
     setSessionAnswered(0)
     setMode('quiz')
-  }, [wrongIds])
+  }, [wrongIds, sessionGoal])
 
   const answer = useCallback((optIndex: number) => {
     if (confirmed) return
@@ -89,7 +79,6 @@ export function useQuizStore() {
     setSessionAnswered(a => a + 1)
     setSessionCorrect(c => c + (correct ? 1 : 0))
     setWrongIds(nextWrong)
-    // fire-and-forget cloud sync
     saveCloudData({
       wrongIds: [...nextWrong],
       totalAnswered: nextAnswered,
@@ -128,6 +117,7 @@ export function useQuizStore() {
     current, selected, confirmed,
     totalAnswered, totalCorrect,
     sessionCorrect, sessionAnswered,
+    sessionGoal, setSessionGoal,
     wrongCount,
     startQuiz, answer, next, goHome, resetProgress,
     questions,
