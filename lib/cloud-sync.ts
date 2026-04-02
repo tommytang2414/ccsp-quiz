@@ -1,10 +1,9 @@
 'use client'
 
-// JSONBin.io — free, no auth needed for reading/writing
-// Create a bin at https://jsonbin.io and replace BIN_ID below
-// Both phone and desktop use the same BIN_ID = shared record
-const BIN_ID = 'REPLACE_WITH_YOUR_JSONBIN_ID'
+const BIN_ID = 'ccsp-quiz'
 const API_BASE = `https://api.jsonbin.io/v3/b/${BIN_ID}`
+const MASTER_KEY = '$2a$10$D2SQeZLn2TTVk/hkEjVkEu0gl6nPJHcyWNytjQrRdMwXUMHGtC0vG'
+const ACCESS_KEY = 'ccsp-quiz'
 
 function getDeviceId(): string {
   if (typeof window === 'undefined') return 'server'
@@ -26,11 +25,15 @@ export interface CloudData {
 export async function fetchCloudData(): Promise<CloudData | null> {
   try {
     const res = await fetch(`${API_BASE}/latest`, {
-      headers: { 'X-Bin-Meta': 'false' },
+      headers: {
+        'X-Access-Key': ACCESS_KEY,
+        'X-Bin-Meta': 'false',
+      },
       cache: 'no-store',
     })
     if (!res.ok) return null
-    const data = await res.json()
+    const json = await res.json()
+    const data = json.record ?? json
     if (!data || typeof data.wrongIds === 'undefined') return null
     return data as CloudData
   } catch {
@@ -44,6 +47,7 @@ export async function saveCloudData(data: CloudData): Promise<void> {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        'X-Access-Key': ACCESS_KEY,
         'X-Bin-Meta': 'false',
       },
       body: JSON.stringify(data),
