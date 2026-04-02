@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCSP Quiz — Admin</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f172a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+  .container { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.5rem; font-weight: 700; color: #f1f5f9; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.1rem; font-weight: 600; color: #94a3b8; margin: 1.5rem 0 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.8rem; }
+  .subtitle { color: #475569; font-size: 0.875rem; margin-bottom: 2rem; }
+  .card { background: rgba(30,41,59,0.7); border: 1px solid rgba(71,85,105,0.5); border-radius: 1rem; padding: 1.25rem; margin-bottom: 1rem; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .stat { background: rgba(30,41,59,0.7); border: 1px solid rgba(71,85,105,0.4); border-radius: 0.875rem; padding: 1rem; text-align: center; }
+  .stat-num { font-size: 2rem; font-weight: 700; color: #f1f5f9; }
+  .stat-label { font-size: 0.75rem; color: #64748b; margin-top: 0.25rem; }
+  .stat.exam-label { grid-column: 1 / -1; font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; background: none; border: none; padding: 0.5rem 0 0; text-align: left; }
+  input, select, button { font-family: inherit; }
+  .form-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  input[type="text"] { background: rgba(15,23,42,0.8); border: 1px solid rgba(71,85,105,0.6); border-radius: 0.625rem; color: #f1f5f9; padding: 0.6rem 0.875rem; font-size: 0.875rem; min-width: 200px; flex: 1; outline: none; }
+  input[type="text"]:focus { border-color: rgba(99,102,241,0.6); }
+  select { background: rgba(30,41,59,0.8); border: 1px solid rgba(71,85,105,0.6); border-radius: 0.625rem; color: #f1f5f9; padding: 0.6rem 0.875rem; font-size: 0.875rem; outline: none; }
+  .btn { padding: 0.6rem 1.25rem; border-radius: 0.625rem; font-weight: 600; font-size: 0.875rem; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-primary { background: #4f46e5; color: white; }
+  .btn-primary:hover { background: #6366f1; }
+  .btn-secondary { background: rgba(51,65,85,0.6); color: #94a3b8; }
+  .btn-secondary:hover { background: rgba(71,85,105,0.7); }
+  .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.75rem; }
+  .codes-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.5rem; margin-top: 0.75rem; }
+  .code-chip { background: rgba(15,23,42,0.8); border: 1px solid rgba(71,85,105,0.5); border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-family: ui-monospace, monospace; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.05em; color: #94a3b8; display: flex; justify-content: space-between; align-items: center; }
+  .code-chip.used { opacity: 0.5; color: #475569; border-color: rgba(30,41,59,0.5); }
+  .code-chip.used::after { content: '✓'; color: #475569; font-size: 0.7rem; }
+  .error { background: rgba(127,29,29,0.4); border: 1px solid rgba(220,38,38,0.4); border-radius: 0.5rem; padding: 0.75rem; color: #f87171; font-size: 0.875rem; margin-bottom: 1rem; }
+  .success { background: rgba(6,78,59,0.4); border: 1px solid rgba(16,185,129,0.4); border-radius: 0.5rem; padding: 0.75rem; color: #6ee7b7; font-size: 0.875rem; margin-bottom: 1rem; white-space: pre-wrap; }
+  .section-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  th { text-align: left; color: #64748b; font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.5rem 0.75rem; border-bottom: 1px solid rgba(71,85,105,0.4); }
+  td { padding: 0.625rem 0.75rem; border-bottom: 1px solid rgba(30,41,59,0.5); color: #94a3b8; }
+  tr:last-child td { border-bottom: none; }
+  .mono { font-family: ui-monospace, monospace; font-size: 0.8rem; }
+  .login-screen { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; gap: 1.5rem; }
+  .login-box { background: rgba(30,41,59,0.8); border: 1px solid rgba(71,85,105,0.5); border-radius: 1.25rem; padding: 2rem; width: 100%; max-width: 360px; }
+  .login-title { font-size: 1.25rem; font-weight: 700; color: #f1f5f9; margin-bottom: 0.5rem; text-align: center; }
+  .login-sub { color: #64748b; font-size: 0.875rem; margin-bottom: 1.5rem; text-align: center; }
+  .login-box input { width: 100%; margin-bottom: 1rem; }
+  .login-box .btn { width: 100%; text-align: center; }
+  .tab-bar { display: flex; gap: 0.25rem; background: rgba(15,23,42,0.6); padding: 0.25rem; border-radius: 0.75rem; margin-bottom: 1.5rem; }
+  .tab { padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500; color: #64748b; cursor: pointer; border: none; background: none; transition: all 0.15s; }
+  .tab.active { background: rgba(79,70,229,0.3); color: #a5b4fc; }
+</style>
+</head>
+<body>
+
+<div class="container" id="app">
+  <!-- filled by JS -->
+</div>
+
+<script>
+const API = 'http://18.139.210.59:5001';
+let adminToken = localStorage.getItem('ccsp-admin-token');
+let activeTab = 'stats';
+
+function el(tag, attrs = {}, children = []) {
+  const d = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'className') d.className = v;
+    else if (k === 'onclick') d.onclick = v;
+    else if (k === 'value') d.value = v;
+    else if (k === 'checked') d.checked = v;
+    else if (k.startsWith('data-')) d.dataset[k.slice(5)] = v;
+    else d.setAttribute(k, v);
+  }
+  children.forEach(c => d.appendChild(typeof c === 'string' ? document.createTextNode(c) : c));
+  return d;
+}
+
+function render() {
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  if (!adminToken) { app.appendChild(renderLogin()); return; }
+  app.appendChild(renderDashboard());
+}
+
+function renderLogin() {
+  const box = el('div', { className: 'login-box' });
+  const errEl = el('div', { id: 'login-err', className: 'error', style: 'display:none' });
+  const inp = el('input', { type: 'password', placeholder: 'Admin token', id: 'token-in' });
+  const btn = el('button', { className: 'btn btn-primary', onclick: () => {
+    const t = document.getElementById('token-in').value.trim();
+    if (!t) return;
+    adminToken = t;
+    localStorage.setItem('ccsp-admin-token', t);
+    render();
+  }});
+  [el('div', { className: 'login-title' }, ['Admin Login']), el('div', { className: 'login-sub' }, ['Enter your admin token']), inp, errEl, btn].forEach(c => box.appendChild(c));
+  return box;
+}
+
+async function api(path, opts = {}) {
+  const r = await fetch(API + path, {
+    ...opts,
+    headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json', ...opts.headers }
+  });
+  return r.json();
+}
+
+async function renderDashboard() {
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+
+  app.appendChild(el('h1', {}, ['CCSP Quiz Admin']));
+  app.appendChild(el('p', { className: 'subtitle' }, [`Logged in as admin`]));
+
+  const tabBar = el('div', { className: 'tab-bar' });
+  ['stats','codes','users'].forEach(t => {
+    tabBar.appendChild(el('button', { className: `tab ${activeTab === t ? 'active' : ''}`, onclick: () => { activeTab = t; render(); } }, [t.charAt(0).toUpperCase() + t.slice(1)]));
+  });
+  app.appendChild(tabBar);
+
+  if (activeTab === 'stats') app.appendChild(await renderStats());
+  else if (activeTab === 'codes') app.appendChild(await renderCodes());
+  else if (activeTab === 'users') app.appendChild(await renderUsers());
+}
+
+async function renderStats() {
+  const container = el('div');
+  try {
+    const data = await api('/api/admin/stats');
+    for (const [exam, s] of Object.entries(data)) {
+      const s2 = s;
+      container.appendChild(el('div', { className: 'stat exam-label' }, [`📚 ${exam}`]));
+      const statsRow = el('div', { className: 'stats' });
+      [['Active Users', s2.users], ['Codes Generated', s2.total_codes], ['Codes Used', s2.active_codes], ['Unused', s2.total_codes - s2.active_codes]].forEach(([label, val]) => {
+        statsRow.appendChild(el('div', { className: 'stat' }, [el('div', { className: 'stat-num' }, [String(val)]), el('div', { className: 'stat-label' }, [label])]));
+      });
+      container.appendChild(statsRow);
+    }
+  } catch(e) { container.appendChild(el('div', { className: 'error' }, ['Failed to load stats: ' + e.message])); }
+  return container;
+}
+
+async function renderCodes() {
+  const container = el('div');
+
+  const form = el('div', { className: 'form-row' });
+  const examSel = el('select', { id: 'exam-sel' }, [el('option', { value: 'CCSP' }, ['CCSP']), el('option', { value: 'CISSP' }, ['CISSP']), el('option', { value: 'AAIA' }, ['AAIA'])]);
+  const countIn = el('input', { type: 'text', id: 'count-in', value: '10', placeholder: 'Count' });
+  const genBtn = el('button', { className: 'btn btn-primary', onclick: async () => {
+    const exam = document.getElementById('exam-sel').value;
+    const count = parseInt(document.getElementById('count-in').value) || 10;
+    const msg = el('div', { className: 'success', id: 'gen-msg' }, ['Generating...']);
+    form.appendChild(msg);
+    try {
+      const res = await api('/api/admin/gen-code', { method: 'POST', body: JSON.stringify({ exam, count }) });
+      if (res.error) { msg.className = 'error'; msg.textContent = res.error; }
+      else { msg.textContent = `Generated ${count} codes:\n${res.codes.join('  ')}`; setTimeout(render, 3000); }
+    } catch(e) { msg.className = 'error'; msg.textContent = e.message; }
+  }}, ['Generate Codes']);
+  [examSel, countIn, genBtn].forEach(c => form.appendChild(c));
+  container.appendChild(form);
+
+  const listContainer = el('div', { id: 'codes-list' });
+  container.appendChild(listContainer);
+
+  try {
+    const res = await api('/api/admin/codes');
+    const byExam = {};
+    res.codes.forEach(c => { if (!byExam[c.code]) byExam[c.code] = c; });
+    const used = res.codes.filter(c => c.used);
+    const unused = res.codes.filter(c => !c.used);
+    listContainer.appendChild(el('p', { style: 'color:#64748b;font-size:0.8rem;margin-bottom:0.5rem' }, [`${unused.length} unused · ${used.length} used`]));
+    const grid = el('div', { className: 'codes-list' });
+    res.codes.forEach(c => {
+      grid.appendChild(el('div', { className: `code-chip ${c.used ? 'used' : ''}` }, [c.code]));
+    });
+    listContainer.appendChild(grid);
+  } catch(e) { listContainer.appendChild(el('div', { className: 'error' }, [e.message])); }
+
+  return container;
+}
+
+async function renderUsers() {
+  const container = el('div');
+  const sel = el('select', { id: 'user-exam-sel' }, [el('option', { value: 'CCSP' }, ['CCSP']), el('option', { value: 'CISSP' }, ['CISSP']), el('option', { value: 'AAIA' }, ['AAIA'])]);
+  sel.onchange = () => { const sel2 = sel; renderUsersForExam(sel2.value).then(c => { const lc = document.getElementById('users-list'); if(lc) { lc.innerHTML=''; lc.appendChild(c); }}); };
+  container.appendChild(sel);
+  const lc = el('div', { id: 'users-list' });
+  container.appendChild(lc);
+  container.appendChild(await renderUsersForExam('CCSP'));
+  return container;
+}
+
+async function renderUsersForExam(exam) {
+  const container = el('div');
+  try {
+    const res = await api(`/api/admin/users?exam=${exam}`);
+    if (!res.users || res.users.length === 0) {
+      container.appendChild(el('p', { style: 'color:#475569;font-size:0.875rem;padding:1rem 0' }, ['No users yet']));
+      return container;
+    }
+    const tbl = el('table');
+    tbl.appendChild(el('thead', {}, [el('tr', {}, [
+      el('th', {}, ['User ID']), el('th', {}, ['Exam']), el('th', {}, ['Registered'])
+    ])]));
+    const tbody = el('tbody');
+    res.users.forEach(u => {
+      const date = new Date(u.created_at * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      tbody.appendChild(el('tr', {}, [
+        el('td', { className: 'mono' }, [u.id]),
+        el('td', {}, [u.exam]),
+        el('td', {}, [date])
+      ]));
+    });
+    tbl.appendChild(tbody);
+    container.appendChild(tbl);
+  } catch(e) { container.appendChild(el('div', { className: 'error' }, [e.message])); }
+  return container;
+}
+
+render();
+</script>
+</body>
+</html>

@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { questions, Question } from './questions'
-import { fetchCloudData, saveCloudData } from './cloud-sync'
+import { fetchCloudData, saveCloudData, register, getToken, logout } from './cloud-sync'
 
-type QuizMode = 'home' | 'quiz' | 'done'
-type LoadState = 'loading' | 'ready' | 'error'
+type QuizMode = 'login' | 'home' | 'quiz' | 'done'
+type LoadState = 'loading' | 'ready'
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr]
@@ -17,7 +17,7 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 export function useQuizStore() {
-  const [mode, setMode] = useState<QuizMode>('home')
+  const [mode, setMode] = useState<QuizMode>('login')
   const [loadState, setLoadState] = useState<LoadState>('loading')
   const [wrongIds, setWrongIds] = useState<Set<number>>(new Set())
   const [queue, setQueue] = useState<Question[]>([])
@@ -29,20 +29,53 @@ export function useQuizStore() {
   const [sessionCorrect, setSessionCorrect] = useState(0)
   const [sessionAnswered, setSessionAnswered] = useState(0)
   const [sessionGoal, setSessionGoal] = useState(20)
+  const [loginError, setLoginError] = useState('')
+  const [isRegistering, setIsRegistering] = useState(false)
 
+  // Check existing token on mount
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      const cloud = await fetchCloudData()
-      if (cancelled) return
-      if (cloud) {
-        setWrongIds(new Set(cloud.wrongIds))
-        setTotalAnswered(cloud.totalAnswered)
-        setTotalCorrect(cloud.totalCorrect)
-      }
+    const token = getToken()
+    if (token) {
+      ;(async () => {
+        const cloud = await fetchCloudData()
+        if (cloud) {
+          setWrongIds(new Set(cloud.wrongIds))
+          setTotalAnswered(cloud.totalAnswered)
+          setTotalCorrect(cloud.totalCorrect)
+        }
+        setMode('home')
+        setLoadState('ready')
+      })()
+    } else {
+      setMode('login')
       setLoadState('ready')
-    })()
-    return () => { cancelled = true }
+    }
+  }, [])
+
+  const doRegister = useCallback(async (code: string) => {
+    setLoginError('')
+    setIsRegistering(true)
+    try {
+      await register(code)
+      setWrongIds(new Set())
+      setTotalAnswered(0)
+      setTotalCorrect(0)
+      setMode('home')
+    } catch (e: any) {
+      setLoginError(e.message || 'Invalid code')
+    } finally {
+      setIsRegistering(false)
+    }
+  }, [])
+
+  const doLogout = useCallback(() => {
+    logout()
+    setWrongIds(new Set())
+    setTotalAnswered(0)
+    setTotalCorrect(0)
+    setSessionCorrect(0)
+    setSessionAnswered(0)
+    setMode('login')
   }, [])
 
   const startQuiz = useCallback((wrongOnly = false) => {
@@ -50,8 +83,7 @@ export function useQuizStore() {
       ? questions.filter(q => wrongIds.has(q.id))
       : questions
     const shuffled = shuffle(src)
-    // Limit to sessionGoal questions
-    const limited = shuffled.slice(0, sessionGoal)
+    const limited = shuffled.slice(0, sessionGoal > 0 ? sessionGoal : questions.length)
     setQueue(limited)
     setCurrent(limited[0] ?? null)
     setSelected(null)
@@ -119,6 +151,8 @@ export function useQuizStore() {
     sessionCorrect, sessionAnswered,
     sessionGoal, setSessionGoal,
     wrongCount,
+    loginError, isRegistering,
+    doRegister, doLogout,
     startQuiz, answer, next, goHome, resetProgress,
     questions,
   }

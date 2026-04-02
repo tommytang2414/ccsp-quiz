@@ -1,9 +1,9 @@
 'use client'
 
 import { useQuizStore } from '@/lib/quiz-store'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
-const SESSION_GOALS = [10, 20, 50, 100, 0] // 0 = all
+const SESSION_GOALS = [10, 20, 50, 100, 0]
 
 function getGreeting() {
   const h = new Date().getHours()
@@ -32,18 +32,9 @@ function ProgressRing({ pct, size = 160, stroke = 12 }: { pct: number; size?: nu
 }
 
 export default function QuizPage() {
-  const {
-    mode, loadState,
-    current, selected, confirmed,
-    totalAnswered, totalCorrect,
-    sessionCorrect, sessionAnswered,
-    sessionGoal, setSessionGoal,
-    wrongCount,
-    startQuiz, answer, next, goHome, resetProgress,
-    questions,
-  } = useQuizStore()
+  const store = useQuizStore()
 
-  if (loadState === 'loading') {
+  if (store.loadState === 'loading') {
     return (
       <main className="min-h-dvh flex items-center justify-center">
         <p className="loading-dots">Loading</p>
@@ -51,62 +42,70 @@ export default function QuizPage() {
     )
   }
 
-  if (mode === 'home') return <HomeScreen
-    wrongCount={wrongCount}
-    totalAnswered={totalAnswered}
-    totalCorrect={totalCorrect}
-    sessionGoal={sessionGoal}
-    onGoalChange={setSessionGoal}
-    onStart={() => startQuiz(false)}
-    onWrongOnly={() => wrongCount > 0 ? startQuiz(true) : undefined}
-    onReset={resetProgress}
-    total={questions.length}
-  />
-
-  if (mode === 'done') return <DoneScreen
-    sessionCorrect={sessionCorrect}
-    sessionAnswered={sessionAnswered}
-    totalCorrect={totalCorrect}
-    totalAnswered={totalAnswered}
-    wrongCount={wrongCount}
-    sessionGoal={sessionGoal}
-    onRetry={() => startQuiz(false)}
-    onWrongOnly={() => wrongCount > 0 ? startQuiz(true) : undefined}
-    onHome={goHome}
-    total={questions.length}
-  />
-
-  if (mode === 'quiz' && current) return (
-    <QuizScreen
-      question={current}
-      selected={selected}
-      confirmed={confirmed}
-      answeredCount={sessionAnswered}
-      sessionGoal={sessionGoal}
-      onAnswer={answer}
-      onNext={next}
-      onHome={goHome}
-    />
-  )
-
+  if (store.mode === 'login') return <LoginScreen store={store} />
+  if (store.mode === 'home') return <HomeScreen store={store} />
+  if (store.mode === 'done') return <DoneScreen store={store} />
+  if (store.mode === 'quiz' && store.current) return <QuizScreen store={store} />
   return null
 }
 
-function HomeScreen({
-  wrongCount, totalAnswered, totalCorrect, total,
-  sessionGoal, onGoalChange,
-  onStart, onWrongOnly, onReset,
-}: {
-  wrongCount: number
-  totalAnswered: number
-  totalCorrect: number
-  total: number
-  sessionGoal: number
-  onGoalChange: (g: number) => void
-  onStart: () => void
-  onWrongOnly?: () => void
-  onReset: () => void
-}) {
+// ─── Login Screen ───────────────────────────────────────────────────────────
+
+function LoginScreen({ store }: { store: ReturnType<typeof useQuizStore> }) {
+  const [code, setCode] = useState('')
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (code.trim().length >= 4) {
+      store.doRegister(code.trim().toUpperCase())
+    }
+  }
+
+  return (
+    <main className="min-h-dvh flex flex-col items-center justify-center p-6 gap-8">
+      <div className="text-center">
+        <div className="text-5xl mb-4">📝</div>
+        <h1 className="text-3xl font-bold text-slate-100 mb-2">CCSP Quiz</h1>
+        <p className="text-slate-500 text-sm">Enter your activation code to start</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="w-full max-w-xs space-y-4">
+        <input
+          type="text"
+          value={code}
+          onChange={e => setCode(e.target.value.toUpperCase())}
+          placeholder="e.g. X7K2M9P3"
+          maxLength={12}
+          className="code-input"
+          autoFocus
+          autoComplete="off"
+          spellCheck={false}
+        />
+        {store.loginError && (
+          <p className="text-red-400 text-sm text-center">{store.loginError}</p>
+        )}
+        <button
+          type="submit"
+          disabled={store.isRegistering || code.trim().length < 4}
+          className="start-btn w-full disabled:opacity-50"
+        >
+          {store.isRegistering ? 'Verifying...' : 'Activate'}
+        </button>
+      </form>
+
+      <p className="text-slate-600 text-xs text-center max-w-xs">
+        Get your code from the administrator.<br />One code = one account.
+      </p>
+    </main>
+  )
+}
+
+// ─── Home Screen ────────────────────────────────────────────────────────────
+
+function HomeScreen({ store }: { store: ReturnType<typeof useQuizStore> }) {
+  const { wrongCount, totalAnswered, totalCorrect, sessionGoal, setSessionGoal,
+          startQuiz, doLogout, resetProgress } = store
+  const total = store.questions.length
   const done = totalAnswered
   const remaining = total - done
   const pct = done > 0 ? Math.round((totalCorrect / done) * 100) : 0
@@ -114,9 +113,14 @@ function HomeScreen({
 
   return (
     <main className="min-h-dvh flex flex-col items-center justify-center p-6 gap-7">
-      <p className="text-slate-500 text-sm">{getGreeting()}</p>
+      <div className="flex w-full max-w-sm justify-between items-start">
+        <div>
+          <p className="text-slate-500 text-sm">{getGreeting()}</p>
+          <p className="text-slate-600 text-xs mt-1">CCSP Exam Prep</p>
+        </div>
+        <button onClick={doLogout} className="logout-btn">Sign out</button>
+      </div>
 
-      {/* Progress Ring */}
       <div className="relative" style={{ width: 160, height: 160 }}>
         <ProgressRing pct={total > 0 ? (done / total) * 100 : 0} />
         <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -125,7 +129,6 @@ function HomeScreen({
         </div>
       </div>
 
-      {/* Stats row */}
       <div className="flex gap-6 text-center">
         <div>
           <div className="text-xl font-bold text-slate-200">{totalCorrect}</div>
@@ -143,7 +146,6 @@ function HomeScreen({
         </div>
       </div>
 
-      {/* Session goal picker */}
       <div className="flex flex-col items-center gap-2">
         <p className="text-slate-500 text-xs">Questions per session</p>
         <div className="flex gap-2 flex-wrap justify-center">
@@ -151,19 +153,13 @@ function HomeScreen({
             const label = g === 0 ? 'All' : `${g}`
             const active = sessionGoal === g
             return (
-              <button
-                key={g}
-                onClick={() => onGoalChange(g)}
-                className={`goal-chip ${active ? 'active' : ''}`}
-              >
-                {label}
-              </button>
+              <button key={g} onClick={() => setSessionGoal(g)}
+                className={`goal-chip ${active ? 'active' : ''}`}>{label}</button>
             )
           })}
         </div>
       </div>
 
-      {/* Wrong answers banner */}
       {wrongCount > 0 && (
         <div className="wrong-card">
           <div className="flex items-center justify-between">
@@ -171,22 +167,17 @@ function HomeScreen({
               <p className="text-red-300 font-semibold text-sm">{wrongCount} questions need review</p>
               <p className="text-red-400/60 text-xs mt-0.5">Focus on your weak areas</p>
             </div>
-            <button onClick={onWrongOnly} className="wrong-retry-btn">
-              Practice
-            </button>
+            <button onClick={() => startQuiz(true)} className="wrong-retry-btn">Practice</button>
           </div>
         </div>
       )}
 
-      {/* Main CTA */}
-      <button onClick={onStart} className="start-btn">
+      <button onClick={() => startQuiz(false)} className="start-btn">
         {done === 0 ? `Start · ${goalLabel} questions` : `Continue · ${goalLabel} questions`}
       </button>
 
       {done > 0 && (
-        <button onClick={onReset} className="reset-link">
-          Reset all progress
-        </button>
+        <button onClick={resetProgress} className="reset-link">Reset all progress</button>
       )}
 
       <p className="text-slate-600 text-xs">Synced across all your devices</p>
@@ -194,56 +185,43 @@ function HomeScreen({
   )
 }
 
-function QuizScreen({
-  question, selected, confirmed, answeredCount, sessionGoal,
-  onAnswer, onNext, onHome,
-}: {
-  question: { id: number; text: string; options: string[]; answer: number; explanation?: string }
-  selected: number | null
-  confirmed: boolean
-  answeredCount: number
-  sessionGoal: number
-  onAnswer: (i: number) => void
-  onNext: () => void
-  onHome: () => void
-}) {
+// ─── Quiz Screen ────────────────────────────────────────────────────────────
+
+function QuizScreen({ store }: { store: ReturnType<typeof useQuizStore> }) {
+  const { current, selected, confirmed, sessionAnswered, sessionGoal,
+          answer, next, goHome } = store
   const letters = ['A', 'B', 'C', 'D', 'E']
-  const isCorrect = selected !== null && selected === question.answer
-  const progress = sessionGoal > 0 ? answeredCount / sessionGoal : 0
+  const isCorrect = selected !== null && current!.answer === selected
+  const progress = sessionGoal > 0 ? sessionAnswered / sessionGoal : 0
 
   return (
     <main className="min-h-dvh flex flex-col max-w-lg mx-auto">
-      {/* Header */}
       <header className="flex items-center justify-between px-4 pt-4 pb-2">
-        <button onClick={onHome} className="back-btn">✕</button>
+        <button onClick={goHome} className="back-btn">✕</button>
         <div className="flex flex-col items-center">
           <span className="text-xs text-slate-500 font-mono">
-            {answeredCount}{sessionGoal > 0 ? `/${sessionGoal}` : ''}
+            {sessionAnswered}{sessionGoal > 0 ? `/${sessionGoal}` : ''}
           </span>
-          <span className="text-xs text-slate-600">Q#{question.id}</span>
+          <span className="text-xs text-slate-600">Q#{current!.id}</span>
         </div>
         <div style={{ width: 40 }} />
       </header>
 
-      {/* Progress bar */}
       <div className="px-4 pb-3">
         <div className="quiz-progress-track">
-          <div
-            className="quiz-progress-fill"
-            style={{ width: `${Math.min(progress * 100, 100)}%` }}
-          />
+          <div className="quiz-progress-fill"
+            style={{ width: `${Math.min(progress * 100, 100)}%` }} />
         </div>
       </div>
 
-      {/* Question */}
       <div className="flex-1 flex flex-col px-5 gap-5">
         <div className="flex-1 flex flex-col justify-center gap-5">
-          <h2 className="question-text">{question.text}</h2>
+          <h2 className="question-text">{current!.text}</h2>
 
           <div className="options-list">
-            {question.options.map((opt, i) => {
+            {current!.options.map((opt, i) => {
               const isSelected = selected === i
-              const isCorrectOpt = question.answer === i
+              const isCorrectOpt = current!.answer === i
               let cls = 'option-btn'
               if (confirmed) {
                 if (isCorrectOpt) cls += ' option-correct'
@@ -253,7 +231,7 @@ function QuizScreen({
                 cls += ' option-selected'
               }
               return (
-                <button key={i} onClick={() => onAnswer(i)} disabled={confirmed} className={cls}>
+                <button key={i} onClick={() => answer(i)} disabled={confirmed} className={cls}>
                   <span className="option-letter">{letters[i]}</span>
                   <span className="option-text">{opt}</span>
                 </button>
@@ -261,14 +239,13 @@ function QuizScreen({
             })}
           </div>
 
-          {/* Explanation */}
           {confirmed && (
             <div className={`exp-box ${isCorrect ? 'exp-correct' : 'exp-wrong'}`}>
               <p className="exp-label">
-                {isCorrect ? '✓ Correct!' : `✗ Answer: ${letters[question.answer]}`}
+                {isCorrect ? '✓ Correct!' : `✗ Answer: ${letters[current!.answer]}`}
               </p>
-              {question.explanation && (
-                <p className="exp-text">{question.explanation}</p>
+              {current!.explanation && (
+                <p className="exp-text">{current!.explanation}</p>
               )}
             </div>
           )}
@@ -276,8 +253,8 @@ function QuizScreen({
 
         {confirmed && (
           <div className="pb-6 text-center">
-            <button onClick={onNext} className="next-btn">
-              {answeredCount >= sessionGoal && sessionGoal > 0 ? 'Finish' : 'Next →'}
+            <button onClick={next} className="next-btn">
+              {sessionAnswered >= sessionGoal && sessionGoal > 0 ? 'Finish' : 'Next →'}
             </button>
           </div>
         )}
@@ -286,24 +263,12 @@ function QuizScreen({
   )
 }
 
-function DoneScreen({
-  sessionCorrect, sessionAnswered,
-  totalCorrect, totalAnswered,
-  wrongCount, sessionGoal,
-  onRetry, onWrongOnly, onHome,
-  total,
-}: {
-  sessionCorrect: number
-  sessionAnswered: number
-  totalCorrect: number
-  totalAnswered: number
-  wrongCount: number
-  sessionGoal: number
-  onRetry: () => void
-  onWrongOnly?: () => void
-  onHome: () => void
-  total: number
-}) {
+// ─── Done Screen ───────────────────────────────────────────────────────────
+
+function DoneScreen({ store }: { store: ReturnType<typeof useQuizStore> }) {
+  const { sessionCorrect, sessionAnswered, totalCorrect, totalAnswered,
+          wrongCount, sessionGoal, startQuiz, doLogout, goHome } = store
+  const total = store.questions.length
   const pct = sessionAnswered > 0 ? Math.round((sessionCorrect / sessionAnswered) * 100) : 0
   const stars = pct >= 90 ? 3 : pct >= 70 ? 2 : pct >= 50 ? 1 : 0
   const done = totalAnswered
@@ -312,16 +277,12 @@ function DoneScreen({
 
   return (
     <main className="min-h-dvh flex flex-col items-center justify-center p-6 gap-6">
-      {/* Stars */}
       <div className="flex gap-2">
         {[1,2,3].map(s => (
-          <span key={s} className={`star ${s <= stars ? 'star-on' : 'star-off'}`}>
-            ★
-          </span>
+          <span key={s} className={`star ${s <= stars ? 'star-on' : 'star-off'}`}>★</span>
         ))}
       </div>
 
-      {/* Score */}
       <div className="text-center">
         <p className={`score-pct ${pct >= 70 ? 'score-good' : pct >= 50 ? 'score-ok' : 'score-bad'}`}>
           {pct}%
@@ -332,7 +293,6 @@ function DoneScreen({
         )}
       </div>
 
-      {/* All-time stats */}
       <div className="alltime-card">
         <p className="text-slate-400 text-xs mb-2">All-time progress</p>
         <div className="flex gap-6 text-center">
@@ -353,21 +313,14 @@ function DoneScreen({
         </div>
       </div>
 
-      {/* Actions */}
       <div className="w-full max-w-sm space-y-3">
-        <button onClick={onRetry} className="start-btn w-full">
-          Keep going
-        </button>
-
+        <button onClick={() => startQuiz(false)} className="start-btn w-full">Keep going</button>
         {wrongCount > 0 && (
-          <button onClick={onWrongOnly} className="wrong-retry-btn w-full">
+          <button onClick={() => startQuiz(true)} className="wrong-retry-btn w-full">
             Review {wrongCount} wrong
           </button>
         )}
-
-        <button onClick={onHome} className="reset-link w-full text-center">
-          Back to home
-        </button>
+        <button onClick={goHome} className="reset-link w-full text-center">Back to home</button>
       </div>
     </main>
   )
