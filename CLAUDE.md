@@ -35,7 +35,7 @@ git push origin master
 - `app/globals.css` — pure CSS utilities
 - `lib/cloud-sync.ts` — API calls via Vercel proxy (`/api/*`)
 - `lib/quiz-store.ts` — React state management
-- `lib/questions.ts` — 1483 parsed MCQ questions
+- `lib/questions.ts` — 1438 MCQ questions (full explanations + fixed options)
 
 ### API Proxy (Vercel)
 - `app/api/register/route.ts` — POST, proxies to VPS `/api/register`
@@ -112,7 +112,39 @@ tail -f /home/ubuntu/ccsp-quiz/flask.log
 aws lightsail put-instance-public-ports --instance-name n8n-trading-bot --port-infos "[{\"protocol\":\"tcp\",\"fromPort\":22,\"toPort\":22,\"cidrs\":[\"0.0.0.0/0\"]},{\"protocol\":\"tcp\",\"fromPort\":5001,\"toPort\":5001,\"cidrs\":[\"0.0.0.0/0\"]}]"
 ```
 
+## Question Data Pipeline
+
+Source: `C:/Users/user/Downloads/CCSP questionbank.txt` (1.8 MB, space-separated options, no delimiters)
+
+Parsing scripts run in order — each takes `lib/questions.ts` as input and outputs to same file:
+
+1. `vps_api/parse_questions.py` — initial parse from textbank (original, now superseded)
+2. `vps_api/rebuild_questions.py` — fixes single-word FRAGMENT options (13 questions)
+3. `vps_api/add_full_explanations.py` — replaces truncated explanations with full text (1369 questions)
+4. `vps_api/fix_imbalanced_options.py` — fixes options with 3x+ length ratio (697 questions)
+5. `vps_api/fix_split_errors.py` — fixes options with `(` or lowercase start (501 questions)
+
+Each script creates a timestamped backup (`lib/questions_pre_*.ts`) before writing.
+
+**Known remaining issues**: ~104 questions where CA anchor failed; options reconstructed via equal-word-count fallback — may be inaccurate. Q1328 option D inferred from CCSP knowledge (textbank missing).
+
+**Root cause of all issues**: textbank stores options as concatenated space-separated words with no delimiter. Parser must infer split boundaries from the correct-answer phrase (CA anchor algorithm).
+
 ## Worklog
+
+### 2026-04-05 — Option Split Error Fix (Passes 2 & 3)
+
+**Problem**: After imbalance fix, ~600 more questions still had wrong options:
+- Options starting with `(` e.g. `"(CSP) Cloud Service Broker"` — fragment of previous option
+- Options starting with lowercase e.g. `"monitoring Contextual-based security"` — split mid-phrase
+- Near-equal length options with wrong split point (Q4: Cloud Service roles)
+
+**Fix** (two passes):
+- `fix_imbalanced_options.py`: targets length ratio > 3x, 697 fixed
+- `fix_split_errors.py`: targets `(`-start or lowercase-start options, 501 fixed; added secondary tie-break (prefer CA option length ≈ CA phrase length to avoid over-splitting)
+- Manual patch: Q4 (Cloud Service Partner/Customer/Provider/Broker), Q1328 (contractual terms — inferred missing 4th option as "Regulatory Compliance")
+
+**Deploy**: `50636fa` ✓ https://ccsp-quiz.vercel.app
 
 ### 2026-04-05 — Full Explanations Extracted from Textbank
 
