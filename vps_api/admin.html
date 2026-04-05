@@ -145,20 +145,23 @@ async function renderCodes() {
   const container = el('div');
 
   const form = el('div', { className: 'form-row' });
+  const nameIn = el('input', { type: 'text', id: 'name-in', placeholder: 'Name (e.g. Tommy)', style: 'min-width:150px' });
   const examSel = el('select', { id: 'exam-sel' }, [el('option', { value: 'CCSP' }, ['CCSP']), el('option', { value: 'CISSP' }, ['CISSP']), el('option', { value: 'AAIA' }, ['AAIA'])]);
-  const countIn = el('input', { type: 'text', id: 'count-in', value: '10', placeholder: 'Count' });
+  const countIn = el('input', { type: 'text', id: 'count-in', value: '1', placeholder: 'Count', style: 'max-width:80px' });
   const genBtn = el('button', { className: 'btn btn-primary', onclick: async () => {
+    const name = document.getElementById('name-in').value.trim();
     const exam = document.getElementById('exam-sel').value;
-    const count = parseInt(document.getElementById('count-in').value) || 10;
+    const count = parseInt(document.getElementById('count-in').value) || 1;
+    if (!name) { alert('Please enter a name'); return; }
     const msg = el('div', { className: 'success', id: 'gen-msg' }, ['Generating...']);
     form.appendChild(msg);
     try {
-      const res = await api('/api/admin/gen-code', { method: 'POST', body: JSON.stringify({ exam, count }) });
+      const res = await api('/api/admin/gen-code', { method: 'POST', body: JSON.stringify({ exam, name, count }) });
       if (res.error) { msg.className = 'error'; msg.textContent = res.error; }
-      else { msg.textContent = `Generated ${count} codes:\n${res.codes.join('  ')}`; setTimeout(render, 3000); }
+      else { msg.textContent = `Generated ${count} code(s) for ${name}:\n${res.codes.join('  ')}`; setTimeout(render, 3000); }
     } catch(e) { msg.className = 'error'; msg.textContent = e.message; }
   }}, ['Generate Codes']);
-  [examSel, countIn, genBtn].forEach(c => form.appendChild(c));
+  [nameIn, examSel, countIn, genBtn].forEach(c => form.appendChild(c));
   container.appendChild(form);
 
   const listContainer = el('div', { id: 'codes-list' });
@@ -173,7 +176,7 @@ async function renderCodes() {
     listContainer.appendChild(el('p', { style: 'color:#64748b;font-size:0.8rem;margin-bottom:0.5rem' }, [`${unused.length} unused · ${used.length} used`]));
     const grid = el('div', { className: 'codes-list' });
     res.codes.forEach(c => {
-      grid.appendChild(el('div', { className: `code-chip ${c.used ? 'used' : ''}` }, [c.code]));
+      grid.appendChild(el('div', { className: `code-chip ${c.used ? 'used' : ''}`, title: `Assigned to: ${c.name}` }, [`${c.code}  (${c.name})`]));
     });
     listContainer.appendChild(grid);
   } catch(e) { listContainer.appendChild(el('div', { className: 'error' }, [e.message])); }

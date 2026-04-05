@@ -114,6 +114,19 @@ aws lightsail put-instance-public-ports --instance-name n8n-trading-bot --port-i
 
 ## Worklog
 
+### 2026-04-05 — Full Explanations Extracted from Textbank
+
+**Problem**: All 1438 questions had truncated explanations. Parser used `([^.]+)` regex stopping at first period, giving only the answer phrase (e.g. "It defines how the data is organized" with no context).
+
+**Fix** (`vps_api/add_full_explanations.py`):
+- Extracts full explanation from each textbank block: everything after `Explanation: Correct answer:` until end of block
+- Strips trailing reference lines `(ISC)2 CCSP... Pg X`
+- Matches by `qtext[:80]` key, updates only when textbank version is longer
+
+**Results**: 1369 updated (avg 3-5x longer), 63 kept (same/shorter), 6 no match
+**Backup**: `lib/questions_pre_fullexpl.ts`
+**Deploy**: b129aef ✓ https://ccsp-quiz.vercel.app
+
 ### 2026-04-03 (later) — Fix All Question Options (Final)
 
 **Problem**: ~47% of questions had corrupted options from pipe-delimiter parser failing on space-separated textbank.

@@ -68,18 +68,24 @@ def code_exists(code):
         cur.execute('SELECT id FROM codes WHERE code = ?', (code,))
         return cur.fetchone() is not None
 
-def code_used(code):
+def get_user_id_by_code(code):
+    """Return user_id linked to this code (None if code not used yet)."""
     with get_cursor() as cur:
         cur.execute('SELECT used_by FROM codes WHERE code = ?', (code,))
         row = cur.fetchone()
-        return row is not None and row['used_by'] is not None
+        if row is None:
+            return None
+        return row['used_by']
 
-def use_code(code, user_id):
+def get_user_by_token(token):
     with get_cursor() as cur:
-        cur.execute(
-            'UPDATE codes SET used_by = ?, used_at = ? WHERE code = ?',
-            (user_id, int(time.time()), code)
-        )
+        cur.execute('SELECT * FROM users WHERE token = ?', (token,))
+        return cur.fetchone()
+
+def get_user_by_id(user_id):
+    with get_cursor() as cur:
+        cur.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+        return cur.fetchone()
 
 def create_user(exam, code):
     user_id = str(uuid.uuid4())
@@ -90,13 +96,11 @@ def create_user(exam, code):
             'INSERT INTO users (id, exam, token, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
             (user_id, exam, token, now, now)
         )
-    use_code(code, user_id)
+        cur.execute(
+            'UPDATE codes SET used_by = ?, used_at = ? WHERE code = ?',
+            (user_id, now, code)
+        )
     return user_id, token
-
-def get_user_by_token(token):
-    with get_cursor() as cur:
-        cur.execute('SELECT * FROM users WHERE token = ?', (token,))
-        return cur.fetchone()
 
 def save_user_data(token, data):
     now = int(time.time())
@@ -133,30 +137,40 @@ def register():
     """
     Body: { "code": "XXXXXX", "exam": "CCSP" }
     Returns: { "token": "...", "userId": "...", "data": {...} }
+    If code already registered to a user, returns that user's existing token (reusable code).
     """
     body = request.get_json() or {}
     code = (body.get('code') or '').strip().upper()
     exam = (body.get('exam') or 'CCSP').strip().upper()
 
-    if not code:
-        return jsonify({'error': 'Code is required'}), 400
-
-    if len(code) < 4:
+    if not code or len(code) < 4:
         return jsonify({'error': 'Invalid code'}), 400
 
     with lock:
         if not code_exists(code):
             return jsonify({'error': 'Invalid code'}), 401
-        if code_used(code):
-            return jsonify({'error': 'Code already used'}), 409
 
+        # Code exists — check if already linked to a user
+        existing_user_id = get_user_id_by_code(code)
+        if existing_user_id:
+            # Reuse existing account
+            user = get_user_by_id(existing_user_id)
+            if user:
+                return jsonify({
+                    'token': user['token'],
+                    'userId': user['id'],
+                    'exam': user['exam'],
+                    'reused': True,
+                })
+
+        # New user
         user_id, token = create_user(exam, code)
 
     return jsonify({
         'token': token,
         'userId': user_id,
-        'data': {},
         'exam': exam,
+        'reused': False,
     })
 
 # ─── Quiz Data ─────────────────────────────────────────────────────────────

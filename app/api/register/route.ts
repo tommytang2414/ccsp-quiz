@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const res = await fetch(`${VPS_API}/api/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, exam }),
+      body: JSON.stringify({ code: code.trim().toUpperCase(), exam: exam || 'CCSP' }),
     })
     const data = await res.json()
     return NextResponse.json(data, { status: res.status })

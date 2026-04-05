@@ -46,6 +46,7 @@ export default function QuizPage() {
   if (store.mode === 'home') return <HomeScreen store={store} />
   if (store.mode === 'done') return <DoneScreen store={store} />
   if (store.mode === 'quiz' && store.current) return <QuizScreen store={store} />
+  if (store.mode === 'review' && store.current) return <ReviewScreen store={store} />
   return null
 }
 
@@ -56,8 +57,9 @@ function LoginScreen({ store }: { store: ReturnType<typeof useQuizStore> }) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (code.trim().length >= 4) {
-      store.doRegister(code.trim().toUpperCase())
+    const c = code.trim().toUpperCase()
+    if (c.length >= 4) {
+      store.doRegister(c)
     }
   }
 
@@ -74,7 +76,7 @@ function LoginScreen({ store }: { store: ReturnType<typeof useQuizStore> }) {
           type="text"
           value={code}
           onChange={e => setCode(e.target.value.toUpperCase())}
-          placeholder="e.g. X7K2M9P3"
+          placeholder="Enter your code"
           maxLength={12}
           className="code-input"
           autoFocus
@@ -94,7 +96,7 @@ function LoginScreen({ store }: { store: ReturnType<typeof useQuizStore> }) {
       </form>
 
       <p className="text-slate-600 text-xs text-center max-w-xs">
-        Get your code from the administrator.<br />One code = one account.
+        Get your code from the administrator.
       </p>
     </main>
   )
@@ -104,7 +106,7 @@ function LoginScreen({ store }: { store: ReturnType<typeof useQuizStore> }) {
 
 function HomeScreen({ store }: { store: ReturnType<typeof useQuizStore> }) {
   const { wrongCount, totalAnswered, totalCorrect, sessionGoal, setSessionGoal,
-          startQuiz, doLogout, resetProgress } = store
+          startQuiz, doLogout, resetProgress, goReview } = store
   const total = store.questions.length
   const done = totalAnswered
   const remaining = total - done
@@ -167,7 +169,10 @@ function HomeScreen({ store }: { store: ReturnType<typeof useQuizStore> }) {
               <p className="text-red-300 font-semibold text-sm">{wrongCount} questions need review</p>
               <p className="text-red-400/60 text-xs mt-0.5">Focus on your weak areas</p>
             </div>
-            <button onClick={() => startQuiz(true)} className="wrong-retry-btn">Practice</button>
+            <div className="flex gap-2">
+              <button onClick={goReview} className="wrong-retry-btn">Review All</button>
+              <button onClick={() => startQuiz(true)} className="wrong-retry-btn">Practice</button>
+            </div>
           </div>
         </div>
       )}
@@ -317,10 +322,80 @@ function DoneScreen({ store }: { store: ReturnType<typeof useQuizStore> }) {
         <button onClick={() => startQuiz(false)} className="start-btn w-full">Keep going</button>
         {wrongCount > 0 && (
           <button onClick={() => startQuiz(true)} className="wrong-retry-btn w-full">
-            Review {wrongCount} wrong
+            Practice wrong
           </button>
         )}
         <button onClick={goHome} className="reset-link w-full text-center">Back to home</button>
+      </div>
+    </main>
+  )
+}
+
+// ─── Review Screen ───────────────────────────────────────────────────────────
+
+function ReviewScreen({ store }: { store: ReturnType<typeof useQuizStore> }) {
+  const { current, selected, confirmed, reviewNext, reviewQueue, goHome } = store
+  const idx = reviewQueue.indexOf(current!)
+  const total = reviewQueue.length
+  const letters = ['A', 'B', 'C', 'D']
+
+  return (
+    <main className="min-h-dvh flex flex-col p-6 gap-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <button onClick={goHome} className="back-btn">←</button>
+        <span className="text-slate-500 text-sm font-mono">{idx + 1} / {total}</span>
+        <div style={{ width: 40 }} />
+      </div>
+
+      {/* Progress bar */}
+      <div className="quiz-progress-track">
+        <div className="quiz-progress-fill" style={{ width: `${((idx + 1) / total) * 100}%` }} />
+      </div>
+
+      {/* Question */}
+      <div className="flex-1 flex flex-col gap-4 max-w-sm mx-auto w-full">
+        <p className="question-text">{current!.text}</p>
+
+        <div className="options-list">
+          {current!.options.map((opt, i) => {
+            const isCorrectOpt = i === current!.answer
+            const isSelected = selected === i
+            let cls = 'option-btn'
+            if (confirmed) {
+              if (isCorrectOpt) cls += ' option-correct'
+              else if (isSelected) cls += ' option-wrong'
+              else cls += ' option-dim'
+            } else if (isSelected) {
+              cls += ' option-selected'
+            }
+            return (
+              <button key={i} onClick={() => store.reviewAnswer(i)} disabled={confirmed} className={cls}>
+                <span className="option-letter">{letters[i]}</span>
+                <span className="option-text">{opt}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {confirmed && (
+          <div className={`exp-box ${selected === current!.answer ? 'exp-correct' : 'exp-wrong'}`}>
+            <p className="exp-label">
+              {selected === current!.answer ? '✓ You got it!' : `✗ Answer: ${letters[current!.answer]}`}
+            </p>
+            {current!.explanation && (
+              <p className="exp-text">{current!.explanation}</p>
+            )}
+          </div>
+        )}
+
+        {confirmed && (
+          <div className="pb-6 text-center">
+            <button onClick={reviewNext} className="next-btn">
+              {idx + 1 >= total ? 'Done' : 'Next →'}
+            </button>
+          </div>
+        )}
       </div>
     </main>
   )

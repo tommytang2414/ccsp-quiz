@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { questions, Question } from './questions'
 import { fetchCloudData, saveCloudData, register, getToken, logout } from './cloud-sync'
 
-type QuizMode = 'login' | 'home' | 'quiz' | 'done'
+type QuizMode = 'login' | 'home' | 'quiz' | 'done' | 'review'
 type LoadState = 'loading' | 'ready'
 
 function shuffle<T>(arr: T[]): T[] {
@@ -31,6 +31,8 @@ export function useQuizStore() {
   const [sessionGoal, setSessionGoal] = useState(20)
   const [loginError, setLoginError] = useState('')
   const [isRegistering, setIsRegistering] = useState(false)
+  const [reviewQueue, setReviewQueue] = useState<Question[]>([])
+  const [reviewAnswered, setReviewAnswered] = useState(0)
 
   // Check existing token on mount
   useEffect(() => {
@@ -93,6 +95,36 @@ export function useQuizStore() {
     setMode('quiz')
   }, [wrongIds, sessionGoal])
 
+  const goReview = useCallback(() => {
+    const wrongQs = questions.filter(q => wrongIds.has(q.id))
+    const sorted = wrongQs.sort((a, b) => a.id - b.id)
+    setReviewQueue(sorted)
+    setCurrent(sorted[0] ?? null)
+    setSelected(null)
+    setConfirmed(false)
+    setReviewAnswered(0)
+    setMode('review')
+  }, [wrongIds])
+
+  const reviewAnswer = useCallback((optIndex: number) => {
+    if (confirmed) return
+    setSelected(optIndex)
+    setConfirmed(true)
+    setReviewAnswered(a => a + 1)
+  }, [confirmed])
+
+  const reviewNext = useCallback(() => {
+    const idx = reviewQueue.indexOf(current!)
+    if (idx + 1 >= reviewQueue.length) {
+      setMode('home')
+      setCurrent(null)
+    } else {
+      setCurrent(reviewQueue[idx + 1])
+      setSelected(null)
+      setConfirmed(false)
+    }
+  }, [current, reviewQueue])
+
   const answer = useCallback((optIndex: number) => {
     if (confirmed) return
     setSelected(optIndex)
@@ -154,6 +186,8 @@ export function useQuizStore() {
     loginError, isRegistering,
     doRegister, doLogout,
     startQuiz, answer, next, goHome, resetProgress,
+    goReview, reviewAnswer, reviewNext,
+    reviewQueue,
     questions,
   }
 }

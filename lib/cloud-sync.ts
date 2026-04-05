@@ -11,7 +11,7 @@ export interface CloudData {
   lastUpdated: number
 }
 
-export async function register(code: string, exam = 'CCSP'): Promise<{ token: string; userId: string }> {
+export async function register(code: string, exam = 'CCSP'): Promise<{ token: string; userId: string; name: string }> {
   const res = await fetch(`${API}/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -21,7 +21,8 @@ export async function register(code: string, exam = 'CCSP'): Promise<{ token: st
   if (!res.ok) throw new Error(data.error || 'Invalid code')
   localStorage.setItem('ccsp-auth-token', data.token)
   localStorage.setItem('ccsp-exam', data.exam || exam)
-  return { token: data.token, userId: data.userId }
+  localStorage.setItem('ccsp-name', data.name || '')
+  return { token: data.token, userId: data.userId, name: data.name }
 }
 
 export function getToken(): string | null {
@@ -29,9 +30,15 @@ export function getToken(): string | null {
   return localStorage.getItem('ccsp-auth-token')
 }
 
+export function getName(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem('ccsp-name')
+}
+
 export function logout(): void {
   localStorage.removeItem('ccsp-auth-token')
   localStorage.removeItem('ccsp-exam')
+  localStorage.removeItem('ccsp-name')
 }
 
 export async function fetchCloudData(): Promise<CloudData | null> {
@@ -44,7 +51,10 @@ export async function fetchCloudData(): Promise<CloudData | null> {
     })
     if (!res.ok) return null
     const json = await res.json()
-    const data = json.data ?? json
+    let data = json.data ?? json
+    if (typeof data === 'string') {
+      try { data = JSON.parse(data) } catch { return null }
+    }
     if (!data || typeof data.wrongIds === 'undefined') return null
     return data as CloudData
   } catch {
